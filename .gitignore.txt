@@ -1,0 +1,13 @@
+
+__pycache__/
+
+# 虛擬venv/
+.venv/ 
+
+
+*.pyc
+
+.DS_Store
+*.swp
+
+shopping_db

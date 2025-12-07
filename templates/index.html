@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>線上購物平台管理</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f4; color: #333; }
+        .container { max-width: 1200px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        h1, h2 { color: #0056b3; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .flash-message { padding: 10px; margin-bottom: 15px; border-radius: 5px; }
+        .flash-message.success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .flash-message.danger { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .flash-message.info { background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        .flash-message.warning { background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+
+        .button-group a, .button-group button {
+            display: inline-block;
+            padding: 8px 12px;
+            margin: 5px 0;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            color: white;
+            font-size: 14px;
+        }
+        .button-group a.add-btn { background-color: #28a745; }
+        .button-group a.edit-btn { background-color: #007bff; }
+        .button-group button.delete-btn { background-color: #dc3545; }
+        .button-group a.order-btn { background-color: #6f42c1; }
+
+        .query-section { background-color: #e9ecef; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        .query-section h2 { margin-top: 0; color: #0056b3; }
+        .query-section form div { margin-bottom: 10px; }
+        .query-section label { margin-right: 10px; font-weight: bold; }
+        .query-section input[type="text"],
+        .query-section input[type="number"],
+        .query-section select {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+            margin-right: 10px;
+        }
+        .query-section button {
+            padding: 8px 15px;
+            background-color: #17a2b8;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .query-section button:hover { background-color: #138496; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>線上購物平台管理系統</h1>
+
+        <div class="button-group">
+            <a href="{{ url_for('add_product') }}" class="add-btn">新增商品</a>
+            <a href="{{ url_for('add_customer') }}" class="add-btn">新增顧客</a>
+            <a href="{{ url_for('new_order') }}" class="order-btn">建立新訂單 (含事務)</a>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <ul class="flash-messages">
+                    {% for category, message in messages %}
+                        <li class="flash-message {{ category }}">{{ message }}</li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        {% endwith %}
+
+        <hr>
+
+        <div class="query-section">
+            <h2>資料查詢</h2>
+            <form action="{{ url_for('search') }}" method="GET" id="queryForm">
+                <div>
+                    <label for="query_type">選擇查詢類型:</label>
+                    <select id="query_type" name="query_type" onchange="toggleQueryInputs()">
+                        <option value="">-- 請選擇 --</option>
+                        <option value="product_by_name" {% if query_type == 'product_by_name' %}selected{% endif %}>1. 依商品名稱查詢 (模糊查詢)</option>
+                        <option value="products_in_price_range" {% if query_type == 'products_in_price_range' %}selected{% endif %}>2. 依商品價格範圍查詢</option>
+                        <option value="customer_by_email" {% if query_type == 'customer_by_email' %}selected{% endif %}>3. 依顧客 Email 查詢</option>
+                        <option value="orders_by_customer" {% if query_type == 'orders_by_customer' %}selected{% endif %}>4. 查詢某顧客的所有訂單</option>
+                        <option value="products_low_stock" {% if query_type == 'products_low_stock' %}selected{% endif %}>5. 查詢庫存量低的商品 (&lt; 10)</option>
+                    </select>
+                    <button type="submit">執行查詢</button>
+                </div>
+
+                <div id="input_search_term" style="display: none; margin-top: 10px;">
+                    <label for="search_term">搜尋關鍵字:</label>
+                    <input type="text" id="search_term" name="search_term" placeholder="輸入名稱或Email" value="{{ search_term if search_term else '' }}">
+                </div>
+
+                <div id="input_price_range" style="display: none; margin-top: 10px;">
+                    <label for="min_price">最低價格:</label>
+                    <input type="number" id="min_price" name="min_price" step="0.01" value="{{ min_price if min_price else '' }}">
+                    <label for="max_price">最高價格:</label>
+                    <input type="number" id="max_price" name="max_price" step="0.01" value="{{ max_price if max_price else '' }}">
+                </div>
+
+                <div id="input_customer_id" style="display: none; margin-top: 10px;">
+                    <label for="customer_id">顧客 ID:</label>
+                    <input type="number" id="customer_id" name="customer_id" min="1" value="{{ customer_id if customer_id else '' }}">
+                    </div>
+            </form>
+        </div>
+
+        <hr>
+
+        <h2>商品列表</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>名稱</th>
+                    <th>描述</th>
+                    <th>價格</th>
+                    <th>庫存</th>
+                    <th>分類</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for product in products %}
+                    <tr>
+                        <td>{{ product[0] }}</td>
+                        <td>{{ product[1] }}</td>
+                        <td>{{ product[2] }}</td>
+                        <td>{{ "%.2f"|format(product[3]) }}</td>
+                        <td>{{ product[4] }}</td>
+                        <td>{{ product[5] }}</td>
+                        <td class="button-group">
+                            <a href="{{ url_for('edit_product', product_id=product[0]) }}" class="edit-btn">編輯</a>
+                            <button onclick="confirmDelete('product', {{ product[0] }})" class="delete-btn">刪除</button>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="7">無商品資料。</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <h2>顧客列表</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>姓名</th>
+                    <th>Email</th>
+                    <th>電話</th>
+                    <th>地址</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for customer in customers %}
+                    <tr>
+                        <td>{{ customer[0] }}</td>
+                        <td>{{ customer[1] }}</td>
+                        <td>{{ customer[2] }}</td>
+                        <td>{{ customer[4] }}</td>
+                        <td>{{ customer[5] }}</td>
+                        <td class="button-group">
+                            <a href="{{ url_for('edit_customer', customer_id=customer[0]) }}" class="edit-btn">編輯</a>
+                            <button onclick="confirmDelete('customer', {{ customer[0] }})" class="delete-btn">刪除</button>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="6">無顧客資料。</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <h2>供應商列表</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>名稱</th>
+                    <th>Email</th>
+                    <th>電話</th>
+                    <th>地址</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for supplier in suppliers %}
+                    <tr>
+                        <td>{{ supplier[0] }}</td>
+                        <td>{{ supplier[1] }}</td>
+                        <td>{{ supplier[2] }}</td>
+                        <td>{{ supplier[3] }}</td>
+                        <td>{{ supplier[4] }}</td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="5">無供應商資料。</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <h2>訂單列表</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>訂單 ID</th>
+                    <th>顧客 ID</th>
+                    <th>訂單日期</th>
+                    <th>狀態</th>
+                    <th>總金額</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in orders %}
+                    <tr>
+                        <td>{{ order[0] }}</td>
+                        <td>{{ order[1] }}</td>
+                        <td>{{ order[2] }}</td>
+                        <td>{{ order[3] }}</td>
+                        <td>{{ "%.2f"|format(order[4]) }}</td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="5">無訂單資料。</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <h2>訂單明細</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>訂單 ID</th>
+                    <th>商品 ID</th>
+                    <th>數量</th>
+                    <th>單價</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in order_items %}
+                    <tr>
+                        <td>{{ item[0] }}</td>
+                        <td>{{ item[1] }}</td>
+                        <td>{{ item[2] }}</td>
+                        <td>{{ "%.2f"|format(item[3]) }}</td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="4">無訂單明細資料。</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <h2>商品與供應商關聯</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>商品 ID</th>
+                    <th>供應商 ID</th>
+                    <th>進貨成本</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ps in product_suppliers %}
+                    <tr>
+                        <td>{{ ps[0] }}</td>
+                        <td>{{ ps[1] }}</td>
+                        <td>{{ "%.2f"|format(ps[2]) }}</td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="3">無商品供應商關聯資料。</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        function confirmDelete(type, id) {
+            if (confirm(`確定要刪除這筆 ${type} 資料嗎？ID: ${id}`)) {
+                window.location.href = `/${type}s/delete/${id}`;
+            }
+        }
+
+        // 根據選擇的查詢類型顯示/隱藏對應的輸入欄位
+        function toggleQueryInputs() {
+            const queryType = document.getElementById('query_type').value;
+            document.getElementById('input_search_term').style.display = 'none';
+            document.getElementById('input_price_range').style.display = 'none';
+            document.getElementById('input_customer_id').style.display = 'none';
+
+            // 清空所有查詢輸入欄位的值，避免干擾
+            document.getElementById('search_term').value = '';
+            document.getElementById('min_price').value = '';
+            document.getElementById('max_price').value = '';
+            document.getElementById('customer_id').value = '';
+
+
+            if (queryType === 'product_by_name' || queryType === 'customer_by_email') {
+                document.getElementById('input_search_term').style.display = 'block';
+            } else if (queryType === 'products_in_price_range') {
+                document.getElementById('input_price_range').style.display = 'block';
+            } else if (queryType === 'orders_by_customer') {
+                document.getElementById('input_customer_id').style.display = 'block';
+            }
+            // products_low_stock 不需要額外輸入
+        }
+
+        // 頁面載入時根據 Flask 傳回的 query_type 參數初始化表單顯示
+        document.addEventListener('DOMContentLoaded', (event) => {
+            toggleQueryInputs();
+        });
+
+    </script>
+</body>
+</html>

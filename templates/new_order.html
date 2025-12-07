@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>建立新訂單 (含事務)</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f4; color: #333; }
+        .container { max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        h1 { color: #0056b3; }
+        form div { margin-bottom: 10px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        select, input[type="number"] {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        .order-item-row { display: flex; align-items: center; margin-bottom: 10px; }
+        .order-item-row select, .order-item-row input { margin-right: 15px; flex: 1; }
+        .remove-item-btn {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 12px;
+            cursor: pointer;
+        }
+        .add-item-btn {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 12px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button[type="submit"] {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 20px;
+        }
+        button[type="submit"]:hover { background-color: #0056b3; }
+        .back-link { margin-top: 20px; display: block; color: #007bff; text-decoration: none; }
+        .flash-message { padding: 10px; margin-bottom: 15px; border-radius: 5px; }
+        .flash-message.success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .flash-message.danger { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>建立新訂單 (含事務)</h1>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <ul class="flash-messages">
+                    {% for category, message in messages %}
+                        <li class="flash-message {{ category }}">{{ message }}</li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        {% endwith %}
+
+        <form action="{{ url_for('new_order') }}" method="POST">
+            <div>
+                <label for="customer_id">選擇顧客:</label>
+                <select id="customer_id" name="customer_id" required>
+                    <option value="">-- 請選擇顧客 --</option>
+                    {% for customer in customers %}
+                        <option value="{{ customer[0] }}">{{ customer[1] }} (ID: {{ customer[0] }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <h3>訂單明細:</h3>
+            <div id="order-items-container">
+                <div class="order-item-row">
+                    <select name="product_id[]" required>
+                        <option value="">-- 選擇商品 --</option>
+                        {% for product in products %}
+                            <option value="{{ product[0] }}">{{ product[1] }} (庫存: {{ product[4] }}, 單價: {{ "%.2f"|format(product[3]) }})</option>
+                        {% endfor %}
+                    </select>
+                    <input type="number" name="quantity[]" placeholder="數量" min="1" value="1" required>
+                    <button type="button" class="remove-item-btn" onclick="removeOrderItem(this)">移除</button>
+                </div>
+            </div>
+            <button type="button" class="add-item-btn" onclick="addOrderItem()">新增商品項</button>
+
+            <button type="submit">建立訂單</button>
+        </form>
+        <a href="{{ url_for('index') }}" class="back-link">返回首頁</a>
+    </div>
+
+    <script>
+        function addOrderItem() {
+            const container = document.getElementById('order-items-container');
+            const newRow = document.createElement('div');
+            newRow.classList.add('order-item-row');
+            newRow.innerHTML = `
+                <select name="product_id[]" required>
+                    <option value="">-- 選擇商品 --</option>
+                    {% for product in products %}
+                        <option value="{{ product[0] }}">{{ product[1] }} (庫存: {{ product[4] }}, 單價: {{ "%.2f"|format(product[3]) }})</option>
+                    {% endfor %}
+                </select>
+                <input type="number" name="quantity[]" placeholder="數量" min="1" value="1" required>
+                <button type="button" class="remove-item-btn" onclick="removeOrderItem(this)">移除</button>
+            `;
+            container.appendChild(newRow);
+        }
+
+        function removeOrderItem(button) {
+            const row = button.parentNode;
+            if (document.querySelectorAll('.order-item-row').length > 1) {
+                row.remove();
+            } else {
+                alert('訂單至少需要一個商品項。');
+            }
+        }
+    </script>
+</body>
+</html>
